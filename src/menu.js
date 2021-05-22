@@ -65,7 +65,7 @@ module.exports = (store, services, mainWindow, app, defaultUserAgent) => {
       label: 'ElectronPlayer',
       submenu: [
         { label: 'ElectronPlayer (' + app.getVersion() + ')', enabled: false },
-        { label: 'Created By Oscar Beaumont', enabled: false },
+        { label: 'Created By Oscar Beaumont  - modified by Timmy', enabled: false },
         {
           label: 'Quit ElectronPlayer',
           accelerator: 'Command+Q', // TODO: Non Mac Shortcut

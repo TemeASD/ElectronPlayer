@@ -1,14 +1,11 @@
 // Modules to control application life and create native browser window
-const fs = require('fs'),
-  path = require('path'),
-  { app, BrowserWindow, session, Menu, ipcMain } = require('electron'),
-  Store = require('electron-store'),
-  {
-    ElectronBlocker,
-    fullLists,
-    Request
-  } = require('@cliqz/adblocker-electron'),
-  fetch = require('node-fetch');
+const fs = require('fs')
+const path = require('path')
+const { app, BrowserWindow, session, Menu, ipcMain } = require('electron')
+
+const Store = require('electron-store')
+const { ElectronBlocker, fullLists, Request } = require('@cliqz/adblocker-electron')
+const fetch = require('node-fetch');
 
 const headerScript = fs.readFileSync(
   path.join(__dirname, 'client-header.js'),
@@ -20,16 +17,11 @@ let mainWindow; // Global Windows Object
 const menu = require('./menu');
 const store = new Store();
 
-//Load Widevine Only On Mac - Castlab Electron is used for all other platforms
-if (process.platform == 'darwin') {
-  require('electron-widevinecdm').load(app);
-}
-
 // Analytics endpoint
-const simpleAnalyticsEndpoint = "https://esa.otbeaumont.me/api";
 let defaultUserAgent;
 
 async function createWindow() {
+  store.set('activeService', 'home');
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 890,
@@ -37,13 +29,14 @@ async function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       nodeIntegrationInWorker: false,
+      enableRemoteModule: true,
       contextIsolation: false, // Must be disabled for preload script. I am not aware of a workaround but this *shouldn't* effect security
       plugins: true,
       preload: path.join(__dirname, 'client-preload.js')
     },
 
     // Window Styling
-    transparent: true,
+    transparent: false,
     vibrancy: 'ultra-dark',
     frame: store.get('options.pictureInPicture')
       ? false
@@ -101,15 +94,6 @@ async function createWindow() {
     );
   }
 
-  // Configire Picture In Picture
-  if (store.get('options.pictureInPicture') && process.platform === 'darwin') {
-    app.dock.hide();
-    mainWindow.setAlwaysOnTop(true, 'floating');
-    mainWindow.setVisibleOnAllWorkspaces(true);
-    mainWindow.setFullScreenable(false);
-    app.dock.show();
-  }
-
   // Detect and update version
   if (!store.get('version')) {
     store.set('version', app.getVersion());
@@ -144,37 +128,9 @@ async function createWindow() {
 
   // Create The Menubar
   Menu.setApplicationMenu(menu(store, global.services, mainWindow, app, defaultUserAgent));
+  console.log('Loading The Main Menu');
+  mainWindow.loadFile('src/ui/index.html');
 
-  // Load the UI or the Default Service
-  let defaultService = store.get('options.defaultService'),
-    lastOpenedPage = store.get('options.lastOpenedPage'),
-    relaunchToPage = store.get('relaunch.toPage');
-
-  if (relaunchToPage !== undefined) {
-    console.log('Relaunching Page ' + relaunchToPage);
-    mainWindow.loadURL(relaunchToPage);
-    store.delete('relaunch.toPage');
-  } else if (defaultService == 'lastOpenedPage' && lastOpenedPage) {
-    console.log('Loading The Last Opened Page ' + lastOpenedPage);
-    mainWindow.loadURL(lastOpenedPage);
-  } else if (defaultService != undefined) {
-    defaultService = global.services.find(
-      service => service.name == defaultService
-    );
-    if (defaultService.url) {
-      console.log('Loading The Default Service ' + defaultService.url);
-      mainWindow.loadURL(defaultService.url);
-      mainWindow.webContents.userAgent = defaultService.userAgent ? defaultService.userAgent : defaultUserAgent;
-    } else {
-      console.log(
-        "Error Default Service Doesn't Have A URL Set. Falling back to the menu."
-      );
-      mainWindow.loadFile('src/ui/index.html');
-    }
-  } else {
-    console.log('Loading The Main Menu');
-    mainWindow.loadFile('src/ui/index.html');
-  }
 
   // Emitted when the window is closing
   mainWindow.on('close', e => {
@@ -202,6 +158,15 @@ async function createWindow() {
   // Inject Header Script On Page Load If In Frameless Window
   mainWindow.webContents.on('dom-ready', broswerWindowDomReady);
 
+  // This method is called when the broswer window's dom is ready
+  // it is used to inject the header if pictureInPicture mode and
+  // hideWindowFrame are enabled.
+  function broswerWindowDomReady() {
+    //dirty haclk
+    if (store.get('activeService') !== 'home') {
+      mainWindow.webContents.executeJavaScript(headerScript);
+    }
+  }
   // Emitted when the window is closed.
   mainWindow.on('closed', mainWindowClosed);
 
@@ -231,55 +196,9 @@ async function createWindow() {
       return callback(false);
     }
   );
-
-  // Analytics
-  // Simple Analytics is used which protects the users privacy. This tracking allow the developers to build
-  // a better product with more insight into what devices it is being used on so better testing can be done.
-  let unique = false;
-  if(!store.get('_do_not_edit___date_')) {
-    store.set('_do_not_edit___date_', (new Date()).getTime())
-    unique = true;
-  } else {
-    let now = new Date();
-    let lastPing = new Date(new Date(store.get('_do_not_edit___date_')));
-    if (lastPing.getFullYear() !== now.getFullYear() || lastPing.getMonth() !== now.getMonth() || lastPing.getDate() !== now.getDate()) {
-      store.set('_do_not_edit___date_', now.getTime())
-      unique = true;
-    }
-  }
-
-  fetch(simpleAnalyticsEndpoint, {
-      method: 'POST',
-      headers: {
-        "User-Agent": "ElectronPlayer",
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify({
-          url: "https://electronplayer.otbeaumont.me/" + store.get('version'),
-          ua: mainWindow.webContents.userAgent,
-          width: mainWindow.getSize()[0],
-          unique: unique,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          urlReferrer: process.platform
-      })
-  })
 }
 
-// This method is called when the broswer window's dom is ready
-// it is used to inject the header if pictureInPicture mode and
-// hideWindowFrame are enabled.
-function broswerWindowDomReady() {
-  if (
-    store.get('options.pictureInPicture') ||
-    store.get('options.hideWindowFrame')
-  ) {
-    // TODO: This is a temp fix and a propper fix should be developed
-    if (mainWindow != null) {
-      mainWindow.webContents.executeJavaScript(headerScript);
-    }
-  }
-}
+
 
 // Run when window is closed. This cleans up the mainWindow object to save resources.
 function mainWindowClosed() {
@@ -321,25 +240,33 @@ app.on('relaunch', () => {
   createWindow();
 });
 
+/*
+EVENTS
+EVENTS
+EVENTS
+EVENTS
+*/
 // Chnage the windows url when told to by the ui
 ipcMain.on('open-url', (e, service) => {
   console.log('Openning Service ' + service.name);
+  store.set('activeService', service.name)
   mainWindow.webContents.userAgent = service.userAgent ? service.userAgent : defaultUserAgent;
   mainWindow.loadURL(service.url);
 });
 
 // Disable fullscreen when button pressed
 ipcMain.on('exit-fullscreen', e => {
-  if (store.get('options.pictureInPicture')) {
-    store.delete('options.pictureInPicture');
-  } else if (store.get('options.hideWindowFrame')) {
+  if (store.get('options.hideWindowFrame')) {
     store.delete('options.hideWindowFrame');
   }
-
   // Relaunch
   app.emit('relaunch');
 });
 
+ipcMain.on('go-mainmenu', e => {
+  store.set('activeService', 'home');
+  mainWindow.loadFile('src/ui/index.html');
+})
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
