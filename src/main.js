@@ -6,7 +6,7 @@ const { app, BrowserWindow, session, Menu, ipcMain } = require('electron')
 const Store = require('electron-store')
 const { ElectronBlocker, fullLists, Request } = require('@cliqz/adblocker-electron')
 const fetch = require('node-fetch');
-
+const { spawn } = require('child_process');
 const headerScript = fs.readFileSync(
   path.join(__dirname, 'client-header.js'),
   'utf8'
@@ -15,6 +15,7 @@ const headerScript = fs.readFileSync(
 // Create Global Varibles
 let mainWindow; // Global Windows Object
 const menu = require('./menu');
+const { exec } = require('child_process')
 const store = new Store();
 
 // Analytics endpoint
@@ -26,6 +27,7 @@ async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 890,
     height: 600,
+    kiosk: true,
     webPreferences: {
       nodeIntegration: false,
       nodeIntegrationInWorker: false,
@@ -47,7 +49,7 @@ async function createWindow() {
     fullscreen: store.get('options.launchFullscreen')
   });
 
-  defaultUserAgent = mainWindow.webContents.userAgent;
+  defaultUserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36";
 
   // Connect Adblocker To Window if Enabled
   if (store.get('options.adblock')) {
@@ -162,7 +164,7 @@ async function createWindow() {
   // it is used to inject the header if pictureInPicture mode and
   // hideWindowFrame are enabled.
   function broswerWindowDomReady() {
-    //dirty haclk
+    //dirty hack
     if (store.get('activeService') !== 'home') {
       mainWindow.webContents.executeJavaScript(headerScript);
     }
@@ -208,7 +210,6 @@ function mainWindowClosed() {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // The timeout fixes the trasparent background on Linux ???? why
-app.on('ready', () => setTimeout(createWindow, 500));
 
 // This is a custom event that is used to relaunch the application.
 // It destroys and recreates the broswer window. This is used to apply
@@ -246,12 +247,35 @@ EVENTS
 EVENTS
 EVENTS
 */
-// Chnage the windows url when told to by the ui
+
+app.on('widevine-ready', event => {
+  console.log(event)
+  setTimeout(createWindow, 500)
+})
+
+app.on('widevine-error', e => {
+  console.log(e)
+  console.log('widewine error)');
+})
+
+app.on('widevine-update-pending', (currentVersion, pendingVersion) => {
+  console.log('Widevine ' + currentVersion + ' is ready to be upgraded to ' + pendingVersion + '!')
+})
+
+// Change the windows url when told to by the ui
 ipcMain.on('open-url', (e, service) => {
   console.log('Openning Service ' + service.name);
   store.set('activeService', service.name)
-  mainWindow.webContents.userAgent = service.userAgent ? service.userAgent : defaultUserAgent;
-  mainWindow.loadURL(service.url);
+  if (service.name === "Spotify") {
+    const spotify = spawn('spotify');
+    spotify.on('close', (code) => {
+      console.log('Spotify is dead, long live Spotify')
+      ipcMain.emit('go-mainmenu');
+    })
+  } else {
+    mainWindow.webContents.userAgent = service.userAgent ? service.userAgent : defaultUserAgent;
+    mainWindow.loadURL(service.url);
+  }
 });
 
 // Disable fullscreen when button pressed
@@ -260,7 +284,10 @@ ipcMain.on('exit-fullscreen', e => {
     store.delete('options.hideWindowFrame');
   }
   // Relaunch
-  app.emit('relaunch');
+  // app.emit('relaunch');
+  // Die
+  app.quit();
+
 });
 
 ipcMain.on('go-mainmenu', e => {

@@ -103,3 +103,11 @@ ipc.on('run-loader', (e, service) => {
     `Switching to service ${service.name}} at the URL ${service.url}...`
   );
 });
+
+
+document.getElementById('exitBtn').addEventListener('click', () => {
+  console.log(
+    `Exit`
+  );
+  ipc.send('exit-fullscreen');
+});

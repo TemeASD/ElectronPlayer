@@ -101,9 +101,24 @@ module.exports = [
     url: 'https://open.spotify.com/',
     color: '#1ED760',
     style: {},
+    permissions: ['openExternal']
+  },
+  {
+    name: 'Plex',
+    logo: 'services/plex.svg',
+    url: 'http://192.168.1.4:32400/web/index.html',
+    color: '#1ED760',
+    style: {},
+    permissions: []
+  },
+  {
+    name: 'HBO Nordic',
+    logo: 'services/hbonordic.svg',
+    url: 'https://fi.hbonordic.com/',
+    color: '#1ED760',
+    style: {},
     permissions: []
   }
-
 ];
 
 

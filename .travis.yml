@@ -1,10 +1,9 @@
 language: node_js
 node_js:
-  - "11"
+  - "14"
 
 os:
   - linux
-  - osx
 #  - windows # TODO: Enable Once Widevine Package Supports Windows
 
 # TEMP Fix: https://travis-ci.community/t/snap-deployment-stopped-working-out-of-nowhere/6908

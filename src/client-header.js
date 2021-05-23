@@ -28,8 +28,8 @@ document.body.insertAdjacentHTML(
       left: 0;
       width: 100%;
       height: 10px;
-      opacity: 1;
-      background: darkgray;
+      opacity: 0.5;
+      background: #31363b;
       transition: height 0.2s;
       z-index: 99999;
       cursor: -webkit-grab;
@@ -40,7 +40,7 @@ document.body.insertAdjacentHTML(
   }
 
   #ElectronPlayer-topbar:hover {
-      opacity: 1;
+      opacity: 0.9;
       height: 12vh;
   }
 
@@ -78,7 +78,7 @@ document.body.insertAdjacentHTML(
   .svg-icon path,
   .svg-icon polygon,
   .svg-icon rect {
-      fill: #4691f6;
+      fill: #3daee9;
       transition: fill 0.25s;
 
   }
@@ -87,7 +87,7 @@ document.body.insertAdjacentHTML(
 
   }
   .svg-icon circle {
-      stroke: #4691f6;
+      stroke: #3daee9;
       stroke-width: 1;
       transition: stroke 0.25s;
   }
